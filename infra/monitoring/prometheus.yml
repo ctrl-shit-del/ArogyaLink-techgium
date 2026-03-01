@@ -1,0 +1,6 @@
+# Scrape config for FastAPI metrics
+scrape_configs:
+  - job_name: 'synera-backend'
+    static_configs:
+      - targets: ['backend:8000']
+    metrics_path: /metrics

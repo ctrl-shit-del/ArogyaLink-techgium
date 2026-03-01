@@ -1,0 +1,34 @@
+# SYNERA 2.0 — No Docker. Supabase + pgvector + Groq/Ollama.
+# pip install -r requirements.txt && python run.py
+
+# Web framework
+fastapi
+uvicorn[standard]
+
+# Supabase (replaces Postgres + ChromaDB + Redis)
+supabase
+vecs
+
+# LLM
+groq
+ollama
+langchain
+langchain-groq
+langchain-community
+
+# RAG / embeddings + reranker
+sentence-transformers
+cross-encoder
+
+# Data
+sqlalchemy[asyncio]
+asyncpg
+pydantic
+pydantic-settings
+numpy
+
+# Dev / test
+pytest
+pytest-asyncio
+httpx
+python-dotenv
