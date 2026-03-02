@@ -63,3 +63,6 @@ Desktop.ini
 
 # Docker
 *.local
+node_modules/
+docs/node_modules/
+rag_output.json
