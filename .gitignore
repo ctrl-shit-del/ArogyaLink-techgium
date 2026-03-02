@@ -65,3 +65,4 @@ Desktop.ini
 *.local
 node_modules/
 docs/node_modules/
+rag_output.json

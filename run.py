@@ -3,6 +3,7 @@ SYNERA 2.0 — Single entry point (no Docker).
 Run:  pip install -r requirements.txt && python run.py
 Or:   uvicorn run:app --reload --port 8000
 """
+import os
 import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -19,9 +20,21 @@ engine = SyneraEngine()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    embedding_provider = os.getenv("EMBEDDING_PROVIDER", "cohere")
+    if embedding_provider == "cohere":
+        # Verify Cohere API key is set
+        if not os.getenv("COHERE_API_KEY"):
+            raise ValueError("COHERE_API_KEY not set in .env")
+        print("✅ Embedding provider: Cohere API (no local model needed)")
+    else:
+        print("Loading embedding model (BGE-M3)... this takes ~15s on first run")
+        from rag.knowledge_base.processed.embedder import get_embedding_model
+        get_embedding_model()
+        print("✅ Embedding model ready (local BGE-M3)")
+
     bus.subscribe("synera/patient/+/vitals", engine.handle_vital_payload)
     bus_task = asyncio.create_task(bus.run())
-    print("Synera engine started")
+    print("✅ Synera engine started")
     print(f"LLM provider: {getattr(settings, 'LLM_PROVIDER', 'ollama')}")
     print("Event bus running")
     print("Ready. Start simulator: python scripts/data_gen/mock_simulator.py")

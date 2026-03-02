@@ -149,7 +149,7 @@ class SupabaseVectorStore:
             "keywords": chunk.get("keywords", []),
             "chunk_text": chunk.get("chunk_text", ""),
             "embedding": embedding
-        }).execute()
+        }, on_conflict="chunk_id").execute()
 
     def insert_case(self, case: dict, embedding: list[float]):
         if not self.client:
@@ -164,7 +164,7 @@ class SupabaseVectorStore:
             "severity": case.get("severity", "high"),
             "case_text": case.get("case_text", ""),
             "embedding": embedding
-        }).execute()
+        }, on_conflict="case_id").execute()
 
     def get_collection_counts(self) -> dict:
         if not self.client:

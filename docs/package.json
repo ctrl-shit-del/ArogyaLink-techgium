@@ -1,0 +1,12 @@
+{
+  "name": "synera-docs",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Scripts to generate Synera 2.0 build journal",
+  "scripts": {
+    "generate-journal": "node generate_journal.js"
+  },
+  "dependencies": {
+    "docx": "^9.6.0"
+  }
+}
