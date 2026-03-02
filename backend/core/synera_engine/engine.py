@@ -62,6 +62,30 @@ def _payload_to_reading_dict(payload: VitalPayload) -> dict:
     }
 
 
+def _normalize_conditions(patient: dict) -> list:
+    """Ensure diagnosed_conditions is a list of dicts with at least 'name' or 'condition'."""
+    raw = patient.get("diagnosed_conditions") or patient.get("conditions") or []
+    out = []
+    for c in raw if isinstance(raw, list) else []:
+        if isinstance(c, dict):
+            out.append({"name": c.get("name") or c.get("condition") or "Unknown", **c})
+        elif isinstance(c, str):
+            out.append({"name": c})
+    return out
+
+
+def _normalize_medications(patient: dict) -> list:
+    """Ensure current_medications is a list of dicts with at least 'name'."""
+    raw = patient.get("current_medications") or patient.get("medications") or []
+    out = []
+    for m in raw if isinstance(raw, list) else []:
+        if isinstance(m, dict):
+            out.append({"name": m.get("name") or "Unknown", "dose": m.get("dose", ""), "frequency": m.get("frequency", ""), **m})
+        elif isinstance(m, str):
+            out.append({"name": m, "dose": "", "frequency": ""})
+    return out
+
+
 def _build_rag_context_and_invoke(patient: dict, buffer: WindowBuffer, trigger_vital: str, trigger_value: float,
                                    baseline_value: float, deviation_sigma: float, second_derivative: float,
                                    motion_score: int, alert_id: str) -> dict:
@@ -83,18 +107,20 @@ def _build_rag_context_and_invoke(patient: dict, buffer: WindowBuffer, trigger_v
         today = date.today()
         return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
 
+    conditions = _normalize_conditions(patient)
+    medications = _normalize_medications(patient)
     age = age_from_dob(patient.get("dob"))
     vitals_window = [VitalPoint(heart_rate=r.heart_rate, spo2=r.spo2, temperature=r.temperature, motion_score=r.motion_score) for r in buffer.get_readings()]
     ps = PatientSummary(
         patient_id=patient["patient_id"],
-        name=patient["name"],
+        name=patient.get("name") or "Unknown",
         age=age,
         gender=patient.get("gender"),
         blood_group=patient.get("blood_group"),
         ward=patient.get("ward"),
         bed_number=patient.get("bed_number"),
-        diagnosed_conditions=patient.get("diagnosed_conditions") or [],
-        current_medications=patient.get("current_medications") or [],
+        diagnosed_conditions=conditions,
+        current_medications=medications,
         known_allergies=patient.get("known_allergies") or [],
         genomic_risk_cardiac=patient.get("genomic_risk_cardiac") or "Unknown",
         genomic_risk_respiratory=patient.get("genomic_risk_respiratory") or "Unknown",
@@ -190,6 +216,9 @@ async def process_vital_payload(payload: VitalPayload) -> Optional[Tuple[RuleRes
 
     if result == RuleResult.SYNERA_STATE:
         print(f"[ENGINE] *** SYNERA_STATE FIRED for {patient_id} ***")
+        cond_names = [c.get("name", "") for c in _normalize_conditions(patient)]
+        med_names = [m.get("name", "") for m in _normalize_medications(patient)]
+        print(f"[ENGINE] Patient loaded: {patient.get('name', 'Unknown')} | conditions={cond_names} | meds={med_names}")
         alert_id = str(uuid4())
         trigger_vital = extra.get("trigger_vital", "heart_rate")
         trigger_value = extra.get("trigger_value", 0.0)

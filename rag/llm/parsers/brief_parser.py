@@ -54,7 +54,7 @@ def parse(raw_llm_output: str, alert_id: str = "", patient_id: str = "") -> Opti
     if not isinstance(data, dict):
         return None
     data.setdefault("alert_id", alert_id)
-    data.setdefault("patient_id", patient_id)
+    data["patient_id"] = patient_id  # Always use real patient_id, never LLM output (e.g. "MedID")
     try:
         return ClinicalBrief.model_validate(data)
     except Exception:

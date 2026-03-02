@@ -14,7 +14,7 @@ RULES:
 
 USER:
 ## ALERT TRIGGER
-Patient: {patient_id} | Ward: {ward} | Bed: {bed_number}
+Patient: {patient_name} (ID: {patient_id}) | Ward: {ward} | Bed: {bed_number}
 Alert time: {trigger_timestamp}
 
 {trend_description}
@@ -27,7 +27,7 @@ Motion score: {motion_score}/10 — PATIENT AT REST
 ## VITAL SIGNS — LAST 10 READINGS (5-second intervals)
 {vitals_table}
 
-## PATIENT MEDICAL RECORD (MedID)
+## PATIENT MEDICAL RECORD (MedID) — USE THIS FOR DIFFERENTIAL AND DRUG FLAGS
 Name: {patient_name} | Age: {patient_age} | Gender: {patient_gender} | Blood: {blood_group}
 
 Conditions: {conditions_list}
@@ -39,7 +39,13 @@ Last notes: {last_clinical_notes}
 ## RETRIEVED MEDICAL GUIDELINES
 {retrieved_chunks_formatted}
 
+## INSTRUCTIONS FOR THIS PATIENT
+- differential_diagnosis: Include 3–4 conditions specific to THIS patient. If post-operative (e.g. appendectomy, surgery): always include surgical site infection, post-op sepsis, anastomotic leak. If diabetic: include hypoglycaemia, diabetic ketoacidosis, infection. Base on conditions and medications above.
+- drug_interaction_flags: For EACH medication listed above, check for interactions relevant to tachycardia/deterioration (e.g. Cefazolin allergy cross-reactivity, Metformin held peri-op — check if resumed). At least one flag per relevant medication.
+- relevant_history: List this patient's conditions and medications that are relevant to this alert (e.g. "Type 2 Diabetes", "Post-appendectomy Day 2", "Cefazolin 1g IV", "Metformin 500mg").
+- recommended_actions: Reference patient's specific medications and ward. Order by urgency.
+
 ## OUTPUT JSON SCHEMA
 {json_schema}
 
-Output the JSON now:
+Output the JSON now (patient_id in output must be exactly "{patient_id}"):
