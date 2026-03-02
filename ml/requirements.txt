@@ -1,0 +1,24 @@
+# Synera 2.0 — ML module requirements
+# Install with: pip install -r ml/requirements.txt
+
+# ── Core ML ───────────────────────────────────────────────────────────────────
+torch>=2.0.0
+numpy>=1.24.0
+scipy>=1.10.0
+
+# ── TFLite / ONNX conversion pipeline ────────────────────────────────────────
+tensorflow>=2.13.0      # TFLite converter + INT8 quantisation
+onnx>=1.14.0            # ONNX intermediate representation
+onnx-tf>=1.10.0         # ONNX → TF SavedModel
+tf2onnx>=1.14.0         # Alternative: TF → ONNX (for future use)
+
+# ── Visualisation ────────────────────────────────────────────────────────────
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# ── Demo terminal UI ─────────────────────────────────────────────────────────
+rich>=13.0.0
+
+# ── Evaluation metrics ────────────────────────────────────────────────────────
+scikit-learn>=1.3.0
+pandas>=2.0.0

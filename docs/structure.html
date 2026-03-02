@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ArogyaLink — Folder Structure</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0d1117; color: #e6edf3; font-family: 'Inter', sans-serif; min-height: 100vh; }
+
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: linear-gradient(rgba(0,255,136,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,136,0.025) 1px, transparent 1px);
+  background-size: 32px 32px;
+  pointer-events: none;
+}
+
+header {
+  padding: 32px 48px 24px;
+  border-bottom: 1px solid #21262d;
+  display: flex; justify-content: space-between; align-items: center;
+  position: relative; z-index: 1;
+}
+.logo { font-family: 'Space Mono', monospace; font-size: 22px; font-weight: 700; color: #00ff88; }
+.logo span { color: #4a5568; font-weight: 400; }
+.stats { display: flex; gap: 24px; }
+.stat { text-align: center; }
+.stat-val { font-family: 'Space Mono', monospace; font-size: 20px; font-weight: 700; color: #00ff88; }
+.stat-label { font-size: 11px; color: #4a5568; letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
+
+.container {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 0; max-width: 1400px; margin: 0 auto;
+  padding: 32px 48px; position: relative; z-index: 1;
+}
+
+.module {
+  border: 1px solid #21262d;
+  border-radius: 0;
+  margin: -1px 0 0 -1px;
+  transition: z-index 0s;
+}
+.module:hover { z-index: 10; position: relative; border-color: rgba(255,255,255,0.12); }
+
+.module-header {
+  padding: 16px 20px 14px;
+  border-bottom: 1px solid #21262d;
+  display: flex; align-items: center; gap: 12px;
+}
+.module-icon { font-size: 18px; width: 28px; text-align: center; }
+.module-name { font-family: 'Space Mono', monospace; font-size: 13px; font-weight: 700; }
+.module-desc { font-size: 11px; color: #4a5568; margin-top: 2px; letter-spacing: 0.3px; }
+.module-tag {
+  margin-left: auto;
+  font-family: 'Space Mono', monospace; font-size: 9px;
+  padding: 3px 8px; border-radius: 2px; letter-spacing: 1px;
+  text-transform: uppercase; flex-shrink: 0;
+}
+
+.module-body { padding: 16px 20px; }
+
+/* TREE */
+.tree { font-family: 'Space Mono', monospace; font-size: 12px; line-height: 1.7; }
+.tree-item { display: flex; align-items: flex-start; gap: 0; }
+.tree-indent { color: #21262d; white-space: pre; flex-shrink: 0; }
+.tree-connector { color: #4a5568; }
+.tree-name { }
+.tree-name.folder { color: #e6edf3; font-weight: 700; }
+.tree-name.file { color: #8b949e; font-weight: 400; }
+.tree-name.special { color: #00ff88; }
+.tree-name.config { color: #ffd32a; }
+.tree-name.test { color: #ff8c42; }
+.tree-name.doc { color: #00d4ff; }
+.tree-name.c-file { color: #a855f7; }
+.tree-comment { color: #4a5568; font-size: 10px; margin-left: 8px; }
+
+/* MODULE COLORS */
+.mod-frontend .module-header { background: rgba(0,212,255,0.04); }
+.mod-frontend .module-name { color: #00d4ff; }
+.mod-frontend .module-tag { background: rgba(0,212,255,0.12); color: #00d4ff; border: 1px solid rgba(0,212,255,0.3); }
+
+.mod-backend .module-header { background: rgba(0,255,136,0.04); }
+.mod-backend .module-name { color: #00ff88; }
+.mod-backend .module-tag { background: rgba(0,255,136,0.12); color: #00ff88; border: 1px solid rgba(0,255,136,0.3); }
+
+.mod-ml .module-header { background: rgba(168,85,247,0.04); }
+.mod-ml .module-name { color: #a855f7; }
+.mod-ml .module-tag { background: rgba(168,85,247,0.12); color: #a855f7; border: 1px solid rgba(168,85,247,0.3); }
+
+.mod-rag .module-header { background: rgba(255,140,66,0.04); }
+.mod-rag .module-name { color: #ff8c42; }
+.mod-rag .module-tag { background: rgba(255,140,66,0.12); color: #ff8c42; border: 1px solid rgba(255,140,66,0.3); }
+
+.mod-firmware .module-header { background: rgba(255,71,87,0.04); }
+.mod-firmware .module-name { color: #ff4757; }
+.mod-firmware .module-tag { background: rgba(255,71,87,0.12); color: #ff4757; border: 1px solid rgba(255,71,87,0.3); }
+
+.mod-infra .module-header { background: rgba(255,211,42,0.04); }
+.mod-infra .module-name { color: #ffd32a; }
+.mod-infra .module-tag { background: rgba(255,211,42,0.12); color: #ffd32a; border: 1px solid rgba(255,211,42,0.3); }
+
+/* ROOT MODULE — FULL WIDTH */
+.module.full { grid-column: 1 / -1; }
+
+footer {
+  grid-column: 1 / -1;
+  padding: 24px 0 8px;
+  text-align: center;
+  font-size: 12px;
+  color: #4a5568;
+  font-family: 'Space Mono', monospace;
+  position: relative; z-index: 1;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">ArogyaLink<span> / Synera 2.0</span></div>
+    <div style="font-size:12px;color:#4a5568;margin-top:4px;">Project Folder Structure · Techgium Season 9</div>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="stat-val">7</div><div class="stat-label">Modules</div></div>
+    <div class="stat"><div class="stat-val">123</div><div class="stat-label">Folders</div></div>
+    <div class="stat"><div class="stat-val">293</div><div class="stat-label">Files</div></div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- ROOT -->
+  <div class="module full" style="border-radius:0;margin:0 0 0 0;">
+    <div class="module-header" style="background:rgba(255,255,255,0.02);">
+      <div class="module-icon">🏠</div>
+      <div><div class="module-name" style="color:#e6edf3;">ArogyaLink/</div><div class="module-desc">Repository root · Entry points & global config</div></div>
+      <div class="module-tag" style="background:rgba(255,255,255,0.08);color:#8b949e;border:1px solid #21262d;">ROOT</div>
+    </div>
+    <div class="module-body" style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;">
+      <div style="padding:10px 14px;background:#161b22;border:1px solid #21262d;border-radius:4px;text-align:center;">
+        <div style="font-family:'Space Mono',monospace;font-size:11px;color:#00ff88;">README.md</div>
+        <div style="font-size:10px;color:#4a5568;margin-top:2px;">Project intro</div>
+      </div>
+      <div style="padding:10px 14px;background:#161b22;border:1px solid #21262d;border-radius:4px;text-align:center;">
+        <div style="font-family:'Space Mono',monospace;font-size:11px;color:#ffd32a;">docker-compose.yml</div>
+        <div style="font-size:10px;color:#4a5568;margin-top:2px;">Full stack deploy</div>
+      </div>
+      <div style="padding:10px 14px;background:#161b22;border:1px solid #21262d;border-radius:4px;text-align:center;">
+        <div style="font-family:'Space Mono',monospace;font-size:11px;color:#ffd32a;">docker-compose.dev.yml</div>
+        <div style="font-size:10px;color:#4a5568;margin-top:2px;">Local dev env</div>
+      </div>
+      <div style="padding:10px 14px;background:#161b22;border:1px solid #21262d;border-radius:4px;text-align:center;">
+        <div style="font-family:'Space Mono',monospace;font-size:11px;color:#8b949e;">.env.example</div>
+        <div style="font-size:10px;color:#4a5568;margin-top:2px;">Env template</div>
+      </div>
+      <div style="padding:10px 14px;background:#161b22;border:1px solid #21262d;border-radius:4px;text-align:center;">
+        <div style="font-family:'Space Mono',monospace;font-size:11px;color:#8b949e;">Makefile</div>
+        <div style="font-size:10px;color:#4a5568;margin-top:2px;">Dev shortcuts</div>
+      </div>
+      <div style="padding:10px 14px;background:#161b22;border:1px solid #21262d;border-radius:4px;text-align:center;">
+        <div style="font-family:'Space Mono',monospace;font-size:11px;color:#8b949e;">.gitignore</div>
+        <div style="font-size:10px;color:#4a5568;margin-top:2px;">Git exclusions</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FRONTEND -->
+  <div class="module mod-frontend">
+    <div class="module-header">
+      <div class="module-icon">⚛️</div>
+      <div><div class="module-name">frontend/</div><div class="module-desc">React 18 + TypeScript + Tailwind · Clinician Dashboard</div></div>
+      <div class="module-tag">React</div>
+    </div>
+    <div class="module-body">
+      <div class="tree">
+        <div class="tree-item"><span class="tree-name folder">src/</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name folder">components/</span></div>
+        <div class="tree-item"><span class="tree-indent">│  ├─ </span><span class="tree-name folder">dashboard/</span><span class="tree-comment">patient list, priority badges</span></div>
+        <div class="tree-item"><span class="tree-indent">│  │  ├─ </span><span class="tree-name file">PatientList.tsx</span></div>
+        <div class="tree-item"><span class="tree-indent">│  │  ├─ </span><span class="tree-name file">PatientCard.tsx</span></div>
+        <div class="tree-item"><span class="tree-indent">│  │  ├─ </span><span class="tree-name file">PriorityBadge.tsx</span></div>
+        <div class="tree-item"><span class="tree-indent">│  │  └─ </span><span class="tree-name file">WardOverview.tsx</span></div>
+        <div class="tree-item"><span class="tree-indent">│  ├─ </span><span class="tree-name folder">alerts/</span><span class="tree-comment">alert cards + RAG brief display</span></div>
+        <div class="tree-item"><span class="tree-indent">│  │  ├─ </span><span class="tree-name special">AlertCard.tsx</span></div>
+        <div class="tree-item"><span class="tree-indent">│  │  ├─ </span><span class="tree-name special">AlertBrief.tsx</span></div>
+        <div class="tree-item"><span class="tree-indent">│  │  ├─ </span><span class="tree-name file">AlertTimeline.tsx</span></div>
+        <div class="tree-item"><span class="tree-indent">│  │  └─ </span><span class="tree-name file">AcknowledgeButton.tsx</span></div>
+        <div class="tree-item"><span class="tree-indent">│  ├─ </span><span class="tree-name folder">patient/</span><span class="tree-comment">MedID panel + vitals</span></div>
+        <div class="tree-item"><span class="tree-indent">│  │  ├─ </span><span class="tree-name special">MedIDPanel.tsx</span></div>
+        <div class="tree-item"><span class="tree-indent">│  │  ├─ </span><span class="tree-name file">VitalHistory.tsx</span></div>
+        <div class="tree-item"><span class="tree-indent">│  │  ├─ </span><span class="tree-name file">PatientHeader.tsx</span></div>
+        <div class="tree-item"><span class="tree-indent">│  │  └─ </span><span class="tree-name file">RiskBadge.tsx</span></div>
+        <div class="tree-item"><span class="tree-indent">│  ├─ </span><span class="tree-name folder">charts/</span><span class="tree-comment">trend + acceleration graphs</span></div>
+        <div class="tree-item"><span class="tree-indent">│  │  ├─ </span><span class="tree-name special">VitalSparkline.tsx</span></div>
+        <div class="tree-item"><span class="tree-indent">│  │  ├─ </span><span class="tree-name special">AccelerationGraph.tsx</span></div>
+        <div class="tree-item"><span class="tree-indent">│  │  └─ </span><span class="tree-name file">TrendChart.tsx</span></div>
+        <div class="tree-item"><span class="tree-indent">│  └─ </span><span class="tree-name folder">shared/</span><span class="tree-comment">Navbar, Modal, StatusDot</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name folder">pages/</span><span class="tree-comment">Dashboard, PatientDetail, Login</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name folder">hooks/</span><span class="tree-comment">useWebSocket, usePatients, useAlerts</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name folder">store/</span><span class="tree-comment">Zustand — patientStore, alertStore</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name folder">types/</span><span class="tree-comment">patient.ts, vitals.ts, alert.ts, medid.ts</span></div>
+        <div class="tree-item"><span class="tree-indent">└─ </span><span class="tree-name folder">utils/</span><span class="tree-comment">formatVitals, priorityUtils</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BACKEND -->
+  <div class="module mod-backend">
+    <div class="module-header">
+      <div class="module-icon">⚙️</div>
+      <div><div class="module-name">backend/</div><div class="module-desc">FastAPI + Python 3.11 · Synera Intelligence Layer</div></div>
+      <div class="module-tag">FastAPI</div>
+    </div>
+    <div class="module-body">
+      <div class="tree">
+        <div class="tree-item"><span class="tree-name special">main.py</span><span class="tree-comment">FastAPI app entry point</span></div>
+        <div class="tree-item"><span class="tree-name folder">api/</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name folder">routes/</span><span class="tree-comment">patients, alerts, vitals, medid, auth</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name folder">middleware/</span><span class="tree-comment">auth, rate_limit, logging</span></div>
+        <div class="tree-item"><span class="tree-indent">└─ </span><span class="tree-name folder">websocket/</span><span class="tree-comment">manager, events, handlers</span></div>
+        <div class="tree-item"><span class="tree-name folder">core/</span><span class="tree-comment" style="color:#00ff88">← The Synera Engine</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name folder">synera_engine/</span></div>
+        <div class="tree-item"><span class="tree-indent">│  ├─ </span><span class="tree-name special">engine.py</span><span class="tree-comment">main orchestrator</span></div>
+        <div class="tree-item"><span class="tree-indent">│  ├─ </span><span class="tree-name special">pipeline.py</span><span class="tree-comment">3-rule sequential pipeline</span></div>
+        <div class="tree-item"><span class="tree-indent">│  └─ </span><span class="tree-name file">state_manager.py</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name folder">trajectory/</span></div>
+        <div class="tree-item"><span class="tree-indent">│  ├─ </span><span class="tree-name special">calculator.py</span><span class="tree-comment">1st + 2nd derivative</span></div>
+        <div class="tree-item"><span class="tree-indent">│  ├─ </span><span class="tree-name special">derivatives.py</span><span class="tree-comment">central difference math</span></div>
+        <div class="tree-item"><span class="tree-indent">│  └─ </span><span class="tree-name special">window_buffer.py</span><span class="tree-comment">10-reading sliding window</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name folder">rules/</span></div>
+        <div class="tree-item"><span class="tree-indent">│  ├─ </span><span class="tree-name special">rule_a_artifact.py</span><span class="tree-comment">glitch filter</span></div>
+        <div class="tree-item"><span class="tree-indent">│  ├─ </span><span class="tree-name special">rule_b_exertion.py</span><span class="tree-comment">motion gating</span></div>
+        <div class="tree-item"><span class="tree-indent">│  ├─ </span><span class="tree-name special">rule_c_trajectory.py</span><span class="tree-comment">acceleration detect</span></div>
+        <div class="tree-item"><span class="tree-indent">│  └─ </span><span class="tree-name file">rule_runner.py</span></div>
+        <div class="tree-item"><span class="tree-indent">└─ </span><span class="tree-name folder">buffer/</span><span class="tree-comment">patient_buffer, ring_buffer</span></div>
+        <div class="tree-item"><span class="tree-name folder">services/</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name folder">mqtt/</span><span class="tree-comment">client, subscriber, parser</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name folder">database/</span><span class="tree-comment">TimescaleDB repos</span></div>
+        <div class="tree-item"><span class="tree-indent">└─ </span><span class="tree-name folder">notifications/</span><span class="tree-comment">alert_dispatcher, sms_gateway</span></div>
+        <div class="tree-item"><span class="tree-name folder">models/</span><span class="tree-comment">schemas/ + orm/</span></div>
+        <div class="tree-item"><span class="tree-name folder">config/</span><span class="tree-comment">settings.py, database.py, mqtt.py</span></div>
+        <div class="tree-item"><span class="tree-name folder">tests/</span><span class="tree-comment">unit/ + integration/</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ML -->
+  <div class="module mod-ml">
+    <div class="module-header">
+      <div class="module-icon">🧠</div>
+      <div><div class="module-name">ml/</div><div class="module-desc">TinyML · DRL Triage · Federated Learning · Baseline</div></div>
+      <div class="module-tag">PyTorch</div>
+    </div>
+    <div class="module-body">
+      <div class="tree">
+        <div class="tree-item"><span class="tree-name folder">tinyml/</span><span class="tree-comment" style="color:#a855f7">← On-device LSTM autoencoder</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name folder">model/</span><span class="tree-comment">autoencoder, lstm_encoder, lstm_decoder</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name folder">training/</span><span class="tree-comment">trainer, dataset, loss, callbacks</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name folder">quantization/</span><span class="tree-comment">INT8 quantize, calibrate, validate</span></div>
+        <div class="tree-item"><span class="tree-indent">└─ </span><span class="tree-name folder">firmware_export/</span><span class="tree-comment">→ .tflite → .h header</span></div>
+        <div class="tree-item" style="margin-top:6px;"><span class="tree-name folder">drl/</span><span class="tree-comment" style="color:#a855f7">← PPO triage agent</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name folder">agent/</span><span class="tree-comment">ppo_agent, policy_network, value_network</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name folder">environment/</span><span class="tree-comment">triage_env, state_space, reward</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name folder">training/</span><span class="tree-comment">trainer, config, checkpointing</span></div>
+        <div class="tree-item"><span class="tree-indent">└─ </span><span class="tree-name folder">evaluation/</span><span class="tree-comment">metrics, backtester</span></div>
+        <div class="tree-item" style="margin-top:6px;"><span class="tree-name folder">federated/</span><span class="tree-comment" style="color:#a855f7">← FedProx network</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name folder">server/</span><span class="tree-comment">aggregation_server, fedprox, diff_privacy</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name folder">client/</span><span class="tree-comment">local_trainer, gradient_uploader</span></div>
+        <div class="tree-item"><span class="tree-indent">└─ </span><span class="tree-name folder">aggregation/</span><span class="tree-comment">fedprox_aggregator, weight_avg</span></div>
+        <div class="tree-item" style="margin-top:6px;"><span class="tree-name folder">baseline/</span><span class="tree-comment" style="color:#a855f7">← Personal calibration</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name folder">calibration/</span><span class="tree-comment">calibrator, baseline_estimator, sigma</span></div>
+        <div class="tree-item"><span class="tree-indent">└─ </span><span class="tree-name folder">personalization/</span><span class="tree-comment">medid_thresholds, genomic_risk</span></div>
+        <div class="tree-item" style="margin-top:6px;"><span class="tree-name folder">shared/</span><span class="tree-comment">preprocessing, features, metrics</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RAG -->
+  <div class="module mod-rag">
+    <div class="module-header">
+      <div class="module-icon">🤖</div>
+      <div><div class="module-name">rag/</div><div class="module-desc">LangChain · ChromaDB · Ollama · Clinical Co-Pilot</div></div>
+      <div class="module-tag">LangChain</div>
+    </div>
+    <div class="module-body">
+      <div class="tree">
+        <div class="tree-item"><span class="tree-name folder">pipeline/</span><span class="tree-comment" style="color:#ff8c42">← Core RAG flow</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name special">rag_pipeline.py</span><span class="tree-comment">retrieval → generation</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name special">clinical_brief_generator.py</span><span class="tree-comment">alert → brief</span></div>
+        <div class="tree-item"><span class="tree-indent">└─ </span><span class="tree-name file">alert_context_builder.py</span></div>
+        <div class="tree-item" style="margin-top:6px;"><span class="tree-name folder">knowledge_base/</span><span class="tree-comment" style="color:#ff8c42">← Medical docs</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name folder">raw_docs/</span><span class="tree-comment">MOHFW PDFs, WHO IMCI, IPharm</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name folder">processed/</span><span class="tree-comment">chunker, embedder, indexer</span></div>
+        <div class="tree-item"><span class="tree-indent">└─ </span><span class="tree-name folder">embeddings/</span><span class="tree-comment">ChromaDB vector store</span></div>
+        <div class="tree-item" style="margin-top:6px;"><span class="tree-name folder">llm/</span><span class="tree-comment" style="color:#ff8c42">← Ollama + Llama 3.1 8B</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name folder">prompts/</span></div>
+        <div class="tree-item"><span class="tree-indent">│  ├─ </span><span class="tree-name config">clinical_brief.txt</span><span class="tree-comment">main alert brief</span></div>
+        <div class="tree-item"><span class="tree-indent">│  ├─ </span><span class="tree-name config">triage_reasoning.txt</span></div>
+        <div class="tree-item"><span class="tree-indent">│  └─ </span><span class="tree-name config">drug_interaction.txt</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name folder">chains/</span><span class="tree-comment">clinical_chain, drug_chain</span></div>
+        <div class="tree-item"><span class="tree-indent">└─ </span><span class="tree-name folder">parsers/</span><span class="tree-comment">brief_parser, citation_parser</span></div>
+        <div class="tree-item" style="margin-top:6px;"><span class="tree-name folder">retrieval/</span><span class="tree-comment">retriever, chroma_store, reranker</span></div>
+        <div class="tree-item"><span class="tree-name folder">evaluation/</span><span class="tree-comment">ragas_eval, precision_recall</span></div>
+        <div class="tree-item"><span class="tree-name folder">tests/</span><span class="tree-comment">test_pipeline, test_retrieval</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FIRMWARE -->
+  <div class="module mod-firmware">
+    <div class="module-header">
+      <div class="module-icon">📟</div>
+      <div><div class="module-name">firmware/</div><div class="module-desc">ESP32-S3 · PlatformIO · C/C++ · TFLite Micro</div></div>
+      <div class="module-tag">ESP-IDF</div>
+    </div>
+    <div class="module-body">
+      <div class="tree">
+        <div class="tree-item"><span class="tree-name config">platformio.ini</span><span class="tree-comment">build config</span></div>
+        <div class="tree-item"><span class="tree-name file">CMakeLists.txt</span><span class="tree-comment">ESP-IDF build</span></div>
+        <div class="tree-item" style="margin-top:4px;"><span class="tree-name folder">src/</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name c-file">main.c</span><span class="tree-comment">app entry + FreeRTOS tasks</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name folder">sensors/</span></div>
+        <div class="tree-item"><span class="tree-indent">│  ├─ </span><span class="tree-name folder">ppg/</span><span class="tree-comment">max30102.h/.c — HR + SpO₂</span></div>
+        <div class="tree-item"><span class="tree-indent">│  ├─ </span><span class="tree-name folder">imu/</span><span class="tree-comment">mpu6050, motion_score</span></div>
+        <div class="tree-item"><span class="tree-indent">│  └─ </span><span class="tree-name folder">temperature/</span><span class="tree-comment">ds18b20 1-Wire</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name folder">mqtt/</span></div>
+        <div class="tree-item"><span class="tree-indent">│  ├─ </span><span class="tree-name special">mqtt_client.h/.c</span><span class="tree-comment">publish to broker</span></div>
+        <div class="tree-item"><span class="tree-indent">│  └─ </span><span class="tree-name special">payload_builder.h/.c</span><span class="tree-comment">JSON assembly</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name folder">tinyml/</span></div>
+        <div class="tree-item"><span class="tree-indent">│  ├─ </span><span class="tree-name special">model_runner.h/.c</span><span class="tree-comment">TFLite Micro inference</span></div>
+        <div class="tree-item"><span class="tree-indent">│  └─ </span><span class="tree-name special">autoencoder_model.h</span><span class="tree-comment">INT8 model weights</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name folder">storage/</span><span class="tree-comment">ring_buffer, spiffs_manager</span></div>
+        <div class="tree-item"><span class="tree-indent">├─ </span><span class="tree-name folder">ota/</span><span class="tree-comment">ota_manager — firmware + model updates</span></div>
+        <div class="tree-item"><span class="tree-indent">└─ </span><span class="tree-name folder">utils/</span><span class="tree-comment">logger, time_utils</span></div>
+        <div class="tree-item" style="margin-top:4px;"><span class="tree-name folder">config/</span><span class="tree-comment">config.h, wifi_config.h, mqtt_config.h</span></div>
+        <div class="tree-item"><span class="tree-name folder">tools/</span><span class="tree-comment">flash.sh, monitor.sh, build.sh</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INFRA + DOCS + SCRIPTS -->
+  <div class="module mod-infra">
+    <div class="module-header">
+      <div class="module-icon">🏗️</div>
+      <div><div class="module-name">infra/ · docs/ · scripts/</div><div class="module-desc">Docker · Nginx · CI/CD · Documentation · Dev Tools</div></div>
+      <div class="module-tag">DevOps</div>
+    </div>
+    <div class="module-body" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+      <div>
+        <div style="font-family:'Space Mono',monospace;font-size:10px;color:#ffd32a;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">infra/</div>
+        <div class="tree" style="font-size:11px;">
+          <div class="tree-item"><span class="tree-name folder">docker/</span></div>
+          <div class="tree-item"><span class="tree-indent"> └ </span><span class="tree-name file">Dockerfile.backend</span></div>
+          <div class="tree-item"><span class="tree-indent"> └ </span><span class="tree-name file">Dockerfile.frontend</span></div>
+          <div class="tree-item"><span class="tree-indent"> └ </span><span class="tree-name file">Dockerfile.rag</span></div>
+          <div class="tree-item"><span class="tree-indent"> └ </span><span class="tree-name config">mosquitto.conf</span></div>
+          <div class="tree-item" style="margin-top:4px;"><span class="tree-name folder">nginx/</span></div>
+          <div class="tree-item"><span class="tree-indent"> └ </span><span class="tree-name file">nginx.conf</span></div>
+          <div class="tree-item" style="margin-top:4px;"><span class="tree-name folder">monitoring/</span></div>
+          <div class="tree-item"><span class="tree-indent"> └ </span><span class="tree-name file">prometheus.yml</span></div>
+          <div class="tree-item"><span class="tree-indent"> └ </span><span class="tree-name file">grafana_dashboard.json</span></div>
+          <div class="tree-item" style="margin-top:4px;"><span class="tree-name folder">ci_cd/</span></div>
+          <div class="tree-item"><span class="tree-indent"> └ </span><span class="tree-name file">github_actions_ci.yml</span></div>
+        </div>
+      </div>
+      <div>
+        <div style="font-family:'Space Mono',monospace;font-size:10px;color:#00d4ff;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">docs/</div>
+        <div class="tree" style="font-size:11px;">
+          <div class="tree-item"><span class="tree-name folder">architecture/</span></div>
+          <div class="tree-item"><span class="tree-indent"> └ </span><span class="tree-name doc">system_overview.md</span></div>
+          <div class="tree-item"><span class="tree-indent"> └ </span><span class="tree-name doc">data_flow.md</span></div>
+          <div class="tree-item"><span class="tree-indent"> └ </span><span class="tree-name doc">api_contracts.md</span></div>
+          <div class="tree-item" style="margin-top:4px;"><span class="tree-name folder">api_reference/</span></div>
+          <div class="tree-item"><span class="tree-indent"> └ </span><span class="tree-name doc">rest_api.md</span></div>
+          <div class="tree-item"><span class="tree-indent"> └ </span><span class="tree-name doc">websocket_events.md</span></div>
+          <div class="tree-item" style="margin-top:4px;"><span class="tree-name folder">hardware/</span></div>
+          <div class="tree-item"><span class="tree-indent"> └ </span><span class="tree-name doc">schematic.md</span></div>
+          <div class="tree-item"><span class="tree-indent"> └ </span><span class="tree-name doc">bom.md</span></div>
+          <div class="tree-item" style="margin-top:4px;"><span class="tree-name folder">research/</span></div>
+          <div class="tree-item"><span class="tree-indent"> └ </span><span class="tree-name doc">novelty_brief.md</span></div>
+          <div class="tree-item"><span class="tree-indent"> └ </span><span class="tree-name doc">algorithm_spec.md</span></div>
+        </div>
+      </div>
+      <div>
+        <div style="font-family:'Space Mono',monospace;font-size:10px;color:#00ff88;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">scripts/</div>
+        <div class="tree" style="font-size:11px;">
+          <div class="tree-item"><span class="tree-name folder">setup/</span></div>
+          <div class="tree-item"><span class="tree-indent"> └ </span><span class="tree-name file">install_deps.sh</span></div>
+          <div class="tree-item"><span class="tree-indent"> └ </span><span class="tree-name file">init_db.sh</span></div>
+          <div class="tree-item"><span class="tree-indent"> └ </span><span class="tree-name file">seed_data.py</span></div>
+          <div class="tree-item" style="margin-top:4px;"><span class="tree-name folder">data_gen/</span></div>
+          <div class="tree-item"><span class="tree-indent"> └ </span><span class="tree-name special">mock_simulator.py</span></div>
+          <div class="tree-item"><span class="tree-indent"> └ </span><span class="tree-name file">patient_profiles.py</span></div>
+          <div class="tree-item"><span class="tree-indent"> └ </span><span class="tree-name file">scenario_generator.py</span></div>
+          <div class="tree-item" style="margin-top:4px;"><span class="tree-name folder">deploy/</span></div>
+          <div class="tree-item"><span class="tree-indent"> └ </span><span class="tree-name file">deploy_pi.sh</span></div>
+          <div class="tree-item"><span class="tree-indent"> └ </span><span class="tree-name file">deploy_cloud.sh</span></div>
+          <div class="tree-item" style="margin-top:4px;"><span class="tree-name folder">testing/</span></div>
+          <div class="tree-item"><span class="tree-indent"> └ </span><span class="tree-name special">demo_scenarios.py</span></div>
+          <div class="tree-item"><span class="tree-indent"> └ </span><span class="tree-name file">load_test.py</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>ArogyaLink · Synera 2.0 · 7 modules · 123 folders · 293 files · Techgium Season 9</footer>
+</div>
+
+</body>
+</html>
