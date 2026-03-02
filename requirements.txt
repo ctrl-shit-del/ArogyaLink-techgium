@@ -19,7 +19,7 @@ langchain-community
 # RAG / embeddings + reranker
 cohere>=5.0.0
 sentence-transformers
-cross-encoder
+# cross-encoder  # optional; reranker currently disabled in code
 
 # Data
 sqlalchemy[asyncio]
@@ -28,8 +28,14 @@ pydantic
 pydantic-settings
 numpy
 
+# DRL Triage Agent (Section 4.4)
+stable-baselines3==2.3.2
+gymnasium==0.29.1
+torch
+
 # Dev / test
 pytest
 pytest-asyncio
 httpx
 python-dotenv
+

@@ -10,6 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.config.settings import settings
+from backend.config.database import get_db
 from backend.api.routes import patients, alerts, vitals, medid, auth, health, rag
 from backend.api.websocket.handlers import router as ws_router
 from backend.services.event_bus import bus
@@ -20,7 +21,6 @@ from backend.core.synera_engine.engine import engine
 async def lifespan(app: FastAPI):
     embedding_provider = os.getenv("EMBEDDING_PROVIDER", "cohere")
     if embedding_provider == "cohere":
-        # Verify Cohere API key is set
         if not os.getenv("COHERE_API_KEY"):
             raise ValueError("COHERE_API_KEY not set in .env")
         print("✅ Embedding provider: Cohere API (no local model needed)")
@@ -30,7 +30,20 @@ async def lifespan(app: FastAPI):
         get_embedding_model()
         print("✅ Embedding model ready (local BGE-M3)")
 
-    # Subscribe engine to internal event bus (for same-process MQTT-style clients)
+    # Load DRL triage agent (Section 4.4)
+    training_task = None
+    try:
+        from drl.agent import triage_agent
+        from drl.online_trainer import online_training_loop
+        if triage_agent.load():
+            print("✅ DRL triage agent loaded")
+        else:
+            print("⚠️ DRL agent not loaded (run scripts/drl/run_pretrain.py first)")
+        supabase = get_db()
+        training_task = asyncio.create_task(online_training_loop(supabase))
+    except Exception as e:
+        print("⚠️ DRL setup skipped:", e)
+
     bus.subscribe("synera/patient/+/vitals", engine.handle_vital_payload)
     bus_task = asyncio.create_task(bus.run())
 
@@ -40,6 +53,12 @@ async def lifespan(app: FastAPI):
     print("📡 Ready. Start simulator: python scripts/data_gen/mock_simulator.py")
     yield
     bus_task.cancel()
+    if training_task is not None:
+        training_task.cancel()
+        try:
+            await training_task
+        except asyncio.CancelledError:
+            pass
     try:
         await bus_task
     except asyncio.CancelledError:

@@ -14,15 +14,17 @@ async def dispatch_synera_state(
     trigger_summary: str,
     vitals_snapshot: dict,
     clinical_brief: dict,
-    priority_tier: str = "TIER_1",
+    priority_tier: str = "ELEVATED",
+    drl_confidence: float | None = None,
     trigger_timestamp: str | None = None,
 ) -> None:
-    """Emit SYNERA_STATE event to all WebSocket clients."""
+    """Emit SYNERA_STATE event to all WebSocket clients (IMMEDIATE/URGENT/ELEVATED from DRL)."""
     payload = {
         "event_type": "SYNERA_STATE",
         "alert_id": alert_id,
         "patient_id": patient_id,
         "priority_tier": priority_tier,
+        "drl_confidence": drl_confidence,
         "trigger_timestamp": trigger_timestamp or datetime.utcnow().isoformat() + "Z",
         "trigger_summary": trigger_summary,
         "vitals_snapshot": vitals_snapshot,

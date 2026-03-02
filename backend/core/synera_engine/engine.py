@@ -1,7 +1,7 @@
 """Main orchestrator: event_bus → rules → RAG → WS. No Docker/MQTT/Redis."""
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from uuid import uuid4
 from typing import Optional, Tuple
 
@@ -86,30 +86,87 @@ def _normalize_medications(patient: dict) -> list:
     return out
 
 
+def _age_from_dob(dob) -> int:
+    if not dob:
+        return 40
+    if isinstance(dob, str):
+        try:
+            dob = date.fromisoformat(dob[:10])
+        except Exception:
+            return 40
+    if not isinstance(dob, date):
+        return 40
+    today = date.today()
+    return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+
+
+def _build_drl_alert_context(
+    patient: dict,
+    payload: VitalPayload,
+    buffer: WindowBuffer,
+    extra: dict,
+    baseline_hr: float,
+    baseline_hr_std: float,
+    baseline_spo2: Optional[float],
+    baseline_spo2_std: Optional[float],
+    baseline_temp: Optional[float],
+    baseline_temp_std: Optional[float],
+) -> dict:
+    """Build alert context dict for DRL state_builder from engine data."""
+    readings = list(buffer.get_readings())
+    hr_first_deriv = 0.0
+    if len(readings) >= 2 and readings[-1].heart_rate is not None and readings[0].heart_rate is not None:
+        hr_first_deriv = (readings[-1].heart_rate - readings[0].heart_rate) / max((len(readings) - 1) * 5.0, 1.0)
+    second_deriv = extra.get("second_derivative", 0.0) or 0.0
+
+    return {
+        "vitals": {
+            "heart_rate": payload.heart_rate or 80,
+            "spo2": payload.spo2 or 97,
+            "temperature": payload.temperature or 37.0,
+            "sys_bp_est": payload.sys_bp_est or 120,
+            "motion_score": payload.motion_score or 0,
+        },
+        "trajectory": {
+            "hr_baseline_mean": baseline_hr,
+            "hr_baseline_std": baseline_hr_std or 5.0,
+            "spo2_baseline_mean": baseline_spo2 or 97.0,
+            "spo2_baseline_std": baseline_spo2_std or 1.0,
+            "temp_baseline_mean": baseline_temp or 37.0,
+            "temp_baseline_std": baseline_temp_std or 0.3,
+            "bp_baseline_mean": 120.0,
+            "bp_baseline_std": 8.0,
+            "hr_first_derivative": hr_first_deriv,
+            "hr_second_derivative": second_deriv,
+            "spo2_second_derivative": 0.0,
+        },
+        "patient": {
+            "age": _age_from_dob(patient.get("dob")),
+            "genomic_risk": {
+                "cardiac": patient.get("genomic_risk_cardiac") or "Low",
+                "respiratory": patient.get("genomic_risk_respiratory") or "Low",
+                "diabetic": patient.get("genomic_risk_diabetic") or "Low",
+                "sepsis": patient.get("genomic_risk_sepsis") or "Low",
+            },
+        },
+        "context": {
+            "hour": datetime.now(timezone.utc).hour,
+            "concurrent_alerts": 0,
+            "ward_occupancy": 25,
+        },
+    }
+
+
 def _build_rag_context_and_invoke(patient: dict, buffer: WindowBuffer, trigger_vital: str, trigger_value: float,
                                    baseline_value: float, deviation_sigma: float, second_derivative: float,
                                    motion_score: int, alert_id: str) -> dict:
     """Build AlertContext and call in-process RAG; return clinical_brief dict."""
-    from datetime import date
     from rag.pipeline.alert_context_builder import AlertContext, PatientSummary, VitalPoint
     from rag.pipeline.clinical_brief_generator import generate_brief_sync
 
-    def age_from_dob(dob):
-        if not dob:
-            return 40
-        if isinstance(dob, str):
-            try:
-                dob = date.fromisoformat(dob[:10])
-            except Exception:
-                return 40
-        if not isinstance(dob, date):
-            return 40
-        today = date.today()
-        return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
-
     conditions = _normalize_conditions(patient)
     medications = _normalize_medications(patient)
-    age = age_from_dob(patient.get("dob"))
+    age = _age_from_dob(patient.get("dob"))
     vitals_window = [VitalPoint(heart_rate=r.heart_rate, spo2=r.spo2, temperature=r.temperature, motion_score=r.motion_score) for r in buffer.get_readings()]
     ps = PatientSummary(
         patient_id=patient["patient_id"],
@@ -227,6 +284,22 @@ async def process_vital_payload(payload: VitalPayload) -> Optional[Tuple[RuleRes
         second_derivative = extra.get("second_derivative", 0.0)
         motion_score = extra.get("motion_score", 0)
 
+        # DRL triage: predict priority tier (IMMEDIATE / URGENT / ELEVATED)
+        try:
+            from drl.state_builder import build_state_vector
+            from drl.agent import triage_agent
+            alert_ctx = _build_drl_alert_context(
+                patient, payload, buffer, extra,
+                baseline_hr, baseline_hr_std, baseline_spo2, baseline_spo2_std,
+                baseline_temp, baseline_temp_std,
+            )
+            state_vector = build_state_vector(alert_ctx)
+            priority_tier, drl_confidence = triage_agent.predict(state_vector)
+            logger.info("[ENGINE] DRL triage: %s (confidence=%.2f)", priority_tier, drl_confidence)
+        except Exception as e:
+            logger.warning("[ENGINE] DRL predict failed: %s — using ELEVATED", e)
+            priority_tier, drl_confidence = "ELEVATED", 0.0
+
         # Check brief cache (5 min TTL) to avoid repeated Groq calls
         cache_key = patient_id
         clinical_brief = None
@@ -292,6 +365,8 @@ async def process_vital_payload(payload: VitalPayload) -> Optional[Tuple[RuleRes
             patient_state_before=prev_state.value,
             patient_state_after=PatientState.SYNERA_STATE.value,
             llm_provider=getattr(settings, "LLM_PROVIDER", "ollama"),
+            priority_tier_assigned=priority_tier,
+            drl_confidence=round(drl_confidence, 2),
         )
 
         trigger_summary = clinical_brief.get("trigger_summary", f"{trigger_vital}={trigger_value} deviation {deviation_sigma:.1f}σ")
@@ -301,7 +376,9 @@ async def process_vital_payload(payload: VitalPayload) -> Optional[Tuple[RuleRes
             trigger_summary=trigger_summary,
             vitals_snapshot=vitals_snapshot,
             clinical_brief=clinical_brief,
-            trigger_timestamp=datetime.utcnow().isoformat() + "Z",
+            priority_tier=priority_tier,
+            drl_confidence=round(drl_confidence, 2),
+            trigger_timestamp=datetime.now(timezone.utc).isoformat(),
         )
         return (result, extra)
 
