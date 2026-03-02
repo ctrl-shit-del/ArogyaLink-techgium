@@ -17,6 +17,7 @@ langchain-groq
 langchain-community
 
 # RAG / embeddings + reranker
+cohere>=5.0.0
 sentence-transformers
 cross-encoder
 
