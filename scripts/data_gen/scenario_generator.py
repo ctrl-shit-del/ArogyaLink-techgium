@@ -1,6 +1,7 @@
 """Generates realistic vital trajectories for mock simulator."""
 import math
 import random
+from datetime import datetime, timezone
 from typing import List, Tuple
 
 
@@ -76,3 +77,49 @@ def slow_linear_drift(
         hr = start_hr + (end_hr - start_hr) * t
         out.append((hr, baseline_spo2, baseline_temp))
     return out
+
+
+def _trajectory_point(patient_id: str, profile: dict, reading_index: int, n: int = 60):
+    """Return (hr, spo2, temp, motion) for the given reading index from the profile's trajectory."""
+    traj = profile.get("trajectory", "flat_with_noise")
+    bh = profile["baseline_hr"]
+    bs = profile["baseline_spo2"]
+    bt = profile.get("baseline_temp", 37.0)
+    if traj == "flat_with_noise":
+        pts = flat_with_noise(bh, bs, bt, n)
+        pt = pts[reading_index % len(pts)]
+        return (pt[0], pt[1], pt[2], 1)
+    if traj == "exponential_acceleration":
+        pts = exponential_acceleration(bh, 140, bs, 91, bt, 37.8, n)
+        pt = pts[reading_index % len(pts)]
+        return (pt[0], pt[1], pt[2], 1)
+    if traj == "exertion_spike":
+        pts = exertion_spike(bh, bs, 116, rise_readings=6, total_readings=n, motion_score=8)
+        pt = pts[reading_index % len(pts)]
+        return (pt[0], pt[1], pt[2], pt[3])
+    if traj == "glitch_spike":
+        pts = glitch_spike(bh, bs, bt, n, profile.get("glitch_value", 228), profile.get("glitch_index", 3))
+        pt = pts[reading_index % len(pts)]
+        return (pt[0], pt[1], pt[2], 1)
+    if traj == "slow_linear_drift":
+        pts = slow_linear_drift(bh, 92, bs, bt, n)
+        pt = pts[reading_index % len(pts)]
+        return (pt[0], pt[1], pt[2], 1)
+    pts = flat_with_noise(bh, bs, bt, n)
+    pt = pts[reading_index % len(pts)]
+    return (pt[0], pt[1], pt[2], 1)
+
+
+def generate_next_reading(patient_id: str, profile: dict, reading_index: int) -> dict:
+    """Generate one vital reading for the given patient at the given index. HR for PT-0002 climbs 82→140 over trajectory."""
+    hr, spo2, temp, motion = _trajectory_point(patient_id, profile, reading_index)
+    return {
+        "patient_id": patient_id,
+        "vitals": {
+            "heart_rate": round(hr, 1),
+            "spo2": round(spo2, 1),
+            "temperature": round(temp, 1),
+        },
+        "context": {"motion_score": motion},
+        "recorded_at": datetime.now(timezone.utc).isoformat(),
+    }

@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     RERANKER_MODEL: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
     # RAG
-    RAG_TIMEOUT_SECONDS: float = 3.0
+    RAG_TIMEOUT_SECONDS: float = 60.0
     RETRIEVAL_TOP_K_PROTOCOLS: int = 8
     RETRIEVAL_TOP_K_CASES: int = 4
     RETRIEVAL_FINAL_TOP_K: int = 6

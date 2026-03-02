@@ -1,8 +1,9 @@
 """Main orchestrator: event_bus → rules → RAG → WS. No Docker/MQTT/Redis."""
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import uuid4
+from typing import Optional, Tuple
 
 from backend.models.schemas.vitals import VitalPayload
 from backend.core.trajectory.window_buffer import WindowBuffer, VitalReading
@@ -116,16 +117,18 @@ def _build_rag_context_and_invoke(patient: dict, buffer: WindowBuffer, trigger_v
     return brief.model_dump() if hasattr(brief, "model_dump") else brief.dict()
 
 
-async def process_vital_payload(payload: VitalPayload) -> None:
-    """Handle one vital payload: rules → optional RAG → DB → WS."""
+async def process_vital_payload(payload: VitalPayload) -> Optional[Tuple[RuleResult, dict]]:
+    """Handle one vital payload: rules → optional RAG → DB → WS. Returns (result, extra) or None if unknown patient."""
     patient_id = payload.patient_id
+    print(f"[ENGINE] Processing: {patient_id} HR={payload.heart_rate} SpO2={payload.spo2} motion={payload.motion_score}")
+
     deque_buf = await in_memory_store.get_buffer(patient_id)
     buffer = _deque_to_window_buffer(deque_buf)
 
     patient = get_patient(patient_id)
     if not patient:
         logger.warning("Unknown patient_id=%s, skipping", patient_id)
-        return
+        return None
 
     baseline_hr = patient.get("baseline_hr_mean") or 80.0
     baseline_hr_std = patient.get("baseline_hr_std") or 5.0
@@ -146,9 +149,12 @@ async def process_vital_payload(payload: VitalPayload) -> None:
         config=rule_config,
     )
 
+    deviation_sigma = extra.get("deviation_sigma", 0.0)
+    print(f"[ENGINE] {patient_id} → {result.value} | HR={payload.heart_rate} | deviation={deviation_sigma:.2f}σ")
+
     if result == RuleResult.ARTIFACT:
         logger.debug("ARTIFACT discarded patient_id=%s", patient_id)
-        return
+        return (result, extra)
 
     await in_memory_store.append_to_buffer(patient_id, _payload_to_reading_dict(payload))
 
@@ -168,7 +174,7 @@ async def process_vital_payload(payload: VitalPayload) -> None:
             dia_bp_est=payload.dia_bp_est,
             motion_score=payload.motion_score,
         )
-        return
+        return (result, extra)
 
     if result == RuleResult.WATCH:
         prev = state_manager.get(patient_id)
@@ -180,9 +186,10 @@ async def process_vital_payload(payload: VitalPayload) -> None:
                 previous_state=prev.value,
                 reason=f"Deviation {extra.get('deviation_sigma', 0):.1f}σ. Trajectory flat. Monitoring.",
             )
-        return
+        return (result, extra)
 
     if result == RuleResult.SYNERA_STATE:
+        print(f"[ENGINE] *** SYNERA_STATE FIRED for {patient_id} ***")
         alert_id = str(uuid4())
         trigger_vital = extra.get("trigger_vital", "heart_rate")
         trigger_value = extra.get("trigger_value", 0.0)
@@ -191,27 +198,45 @@ async def process_vital_payload(payload: VitalPayload) -> None:
         second_derivative = extra.get("second_derivative", 0.0)
         motion_score = extra.get("motion_score", 0)
 
-        try:
-            clinical_brief = await asyncio.wait_for(
-                asyncio.to_thread(
-                    _build_rag_context_and_invoke,
-                    patient, buffer, trigger_vital, trigger_value,
-                    baseline_value, deviation_sigma, second_derivative, motion_score, alert_id,
-                ),
-                timeout=settings.RAG_TIMEOUT_SECONDS,
-            )
-        except asyncio.TimeoutError:
-            logger.warning("RAG timeout for alert_id=%s", alert_id)
-            clinical_brief = {
-                "trigger_summary": f"{trigger_vital} trajectory alert. Rule-based fallback (RAG timeout).",
-                "differential_diagnosis": [],
-                "recommended_actions": [{"priority": 1, "action": "Assess patient at bedside", "rationale": "Alert fired."}],
-                "drug_interaction_flags": [],
-                "relevant_history": [],
-                "sources": [],
-                "confidence_note": "This is decision support. Verify clinically.",
-                "generation_time_ms": 0,
-            }
+        # Check brief cache (5 min TTL) to avoid repeated Groq calls
+        cache_key = patient_id
+        clinical_brief = None
+        cached = _get_engine()._brief_cache.get(cache_key)
+        if cached:
+            age_seconds = (datetime.now(timezone.utc) - cached["timestamp"]).total_seconds()
+            if age_seconds < 300:
+                print(f"[ENGINE] Using cached brief for {patient_id}")
+                clinical_brief = cached["brief"]
+        if clinical_brief is None:
+            print("[ENGINE] RAG pipeline generating brief...")
+            _rag_start = datetime.now(timezone.utc)
+            try:
+                clinical_brief = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        _build_rag_context_and_invoke,
+                        patient, buffer, trigger_vital, trigger_value,
+                        baseline_value, deviation_sigma, second_derivative, motion_score, alert_id,
+                    ),
+                    timeout=settings.RAG_TIMEOUT_SECONDS,
+                )
+                _rag_ms = (datetime.now(timezone.utc) - _rag_start).total_seconds() * 1000
+                print(f"[ENGINE] Clinical brief generated in {_rag_ms:.0f}ms")
+                _get_engine()._brief_cache[cache_key] = {
+                    "brief": clinical_brief,
+                    "timestamp": datetime.now(timezone.utc),
+                }
+            except asyncio.TimeoutError:
+                logger.warning("RAG timeout for alert_id=%s", alert_id)
+                clinical_brief = {
+                    "trigger_summary": f"{trigger_vital} trajectory alert. Rule-based fallback (RAG timeout).",
+                    "differential_diagnosis": [],
+                    "recommended_actions": [{"priority": 1, "action": "Assess patient at bedside", "rationale": "Alert fired."}],
+                    "drug_interaction_flags": [],
+                    "relevant_history": [],
+                    "sources": [],
+                    "confidence_note": "This is decision support. Verify clinically.",
+                    "generation_time_ms": 0,
+                }
 
         vitals_snapshot = {
             "heart_rate": payload.heart_rate,
@@ -249,40 +274,90 @@ async def process_vital_payload(payload: VitalPayload) -> None:
             clinical_brief=clinical_brief,
             trigger_timestamp=datetime.utcnow().isoformat() + "Z",
         )
-        return
+        return (result, extra)
+
+
+def _dict_to_vital_payload(payload: dict) -> VitalPayload:
+    """Build VitalPayload from flat or nested dict (vitals/context/tinyml)."""
+    vitals = payload.get("vitals", payload)
+    patient_id = payload.get("patient_id") or vitals.get("patient_id", "")
+    context = payload.get("context", {})
+    recorded_at = payload.get("recorded_at") or vitals.get("recorded_at")
+    if isinstance(recorded_at, str):
+        try:
+            recorded_at = datetime.fromisoformat(recorded_at.replace("Z", "+00:00"))
+        except Exception:
+            recorded_at = datetime.now(timezone.utc)
+    elif recorded_at is None:
+        recorded_at = datetime.now(timezone.utc)
+    motion_val = vitals.get("motion_score") if "motion_score" in vitals else context.get("motion_score")
+    return VitalPayload(
+        patient_id=patient_id,
+        heart_rate=float(vitals.get("heart_rate")) if vitals.get("heart_rate") is not None else None,
+        spo2=float(vitals.get("spo2")) if vitals.get("spo2") is not None else None,
+        temperature=float(vitals.get("temperature")) if vitals.get("temperature") is not None else None,
+        sys_bp_est=float(vitals.get("sys_bp_est")) if vitals.get("sys_bp_est") is not None else None,
+        dia_bp_est=float(vitals.get("dia_bp_est")) if vitals.get("dia_bp_est") is not None else None,
+        motion_score=int(motion_val) if motion_val is not None else None,
+        recorded_at=recorded_at,
+    )
+
+
+def _get_engine():
+    """Return the engine singleton (avoids forward reference in process_vital_payload)."""
+    return engine
 
 
 class SyneraEngine:
     """Wrapper so event_bus can subscribe engine.handle_vital_payload(topic, payload)."""
 
+    def __init__(self):
+        self._brief_cache: dict = {}  # {patient_id: {"brief": ..., "timestamp": datetime}}
+
     async def handle_vital_payload(self, topic: str, payload: dict):
         """Parse dict to VitalPayload and run process_vital_payload."""
+        print(f"[ENGINE] Received payload: topic={topic} patient={payload.get('patient_id', '?')} HR={payload.get('heart_rate', payload.get('vitals', {}).get('heart_rate', '?'))}")
         from backend.services.mqtt.parser import parse_mqtt_payload
-        # payload may already be dict from event_bus
         if isinstance(payload, dict):
-            import json
-            # VitalPayload expects same shape as MQTT parser output
-            from datetime import datetime
-            recorded_at = payload.get("recorded_at")
-            if isinstance(recorded_at, str):
-                try:
-                    recorded_at = datetime.fromisoformat(recorded_at.replace("Z", "+00:00"))
-                except Exception:
-                    recorded_at = datetime.utcnow()
-            elif recorded_at is None:
-                recorded_at = datetime.utcnow()
-            vp = VitalPayload(
-                patient_id=payload.get("patient_id", ""),
-                heart_rate=payload.get("heart_rate"),
-                spo2=payload.get("spo2"),
-                temperature=payload.get("temperature"),
-                sys_bp_est=payload.get("sys_bp_est"),
-                dia_bp_est=payload.get("dia_bp_est"),
-                motion_score=payload.get("motion_score"),
-                recorded_at=recorded_at,
-            )
+            vp = _dict_to_vital_payload(payload)
         else:
             vp = parse_mqtt_payload(payload if isinstance(payload, bytes) else str(payload))
             if not vp:
                 return
-        await process_vital_payload(vp)
+        ret = await process_vital_payload(vp)
+        if ret:
+            result, extra = ret
+            print(f"[ENGINE] Rule result for {vp.patient_id}: {result.value}")
+
+    async def process_vital(self, patient_id: str, vital_payload: dict):
+        """
+        Direct entry point for HTTP-delivered vital readings (simulator or wearable).
+        Same logic as handle_vital_payload but returns state/rule/message for the ingest API.
+        """
+        from dataclasses import dataclass
+
+        @dataclass
+        class ProcessResult:
+            state: str
+            rule: str
+            message: str
+
+        try:
+            vp = _dict_to_vital_payload({**vital_payload, "patient_id": patient_id})
+            ret = await process_vital_payload(vp)
+            if ret is None:
+                return ProcessResult(state="ERROR", rule="UNKNOWN_PATIENT", message="Patient not found")
+            result, extra = ret
+            deviation_sigma = extra.get("deviation_sigma", 0.0)
+            return ProcessResult(
+                state=result.value,
+                rule=result.value,
+                message=f"HR={vp.heart_rate} deviation={deviation_sigma:.2f}σ",
+            )
+        except Exception as e:
+            logger.exception("Error processing %s: %s", patient_id, e)
+            print(f"[ENGINE] Error processing {patient_id}: {e}")
+            return ProcessResult(state="ERROR", rule="ERROR", message=str(e))
+
+
+engine = SyneraEngine()

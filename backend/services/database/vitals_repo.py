@@ -1,11 +1,25 @@
 """Vitals history writes + reads via Supabase."""
-from datetime import datetime
+import datetime
 from typing import Optional
 from backend.config.database import get_db
 
 
-def insert_vital(patient_id: str, **kwargs) -> dict:
-    row = {"patient_id": patient_id, **kwargs}
+def insert_vital(patient_id, heart_rate, spo2, temperature, motion_score, recorded_at=None, **kwargs):
+    # Convert datetime to ISO string if needed
+    if isinstance(recorded_at, datetime.datetime):
+        recorded_at = recorded_at.isoformat()
+    if recorded_at is None:
+        recorded_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+    row = {
+        "patient_id": patient_id,
+        "heart_rate": heart_rate,
+        "spo2": spo2,
+        "temperature": temperature,
+        "motion_score": motion_score,
+        "recorded_at": recorded_at,
+        **kwargs,
+    }
     response = get_db().table("vitals_history").insert(row).execute()
     return response.data[0] if response.data else row
 
@@ -14,8 +28,8 @@ def get_vitals_history(
     patient_id: str,
     page: int = 1,
     limit: int = 50,
-    from_ts: Optional[datetime] = None,
-    to_ts: Optional[datetime] = None,
+    from_ts: Optional[datetime.datetime] = None,
+    to_ts: Optional[datetime.datetime] = None,
 ) -> list[dict]:
     try:
         query = get_db().table("vitals_history").select("*").eq("patient_id", patient_id).order("recorded_at", desc=True).range((page - 1) * limit, page * limit - 1)

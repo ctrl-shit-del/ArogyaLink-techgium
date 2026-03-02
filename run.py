@@ -13,9 +13,7 @@ from backend.config.settings import settings
 from backend.api.routes import patients, alerts, vitals, medid, auth, health, rag
 from backend.api.websocket.handlers import router as ws_router
 from backend.services.event_bus import bus
-from backend.core.synera_engine.engine import SyneraEngine
-
-engine = SyneraEngine()
+from backend.core.synera_engine.engine import engine
 
 
 @asynccontextmanager
@@ -32,12 +30,14 @@ async def lifespan(app: FastAPI):
         get_embedding_model()
         print("✅ Embedding model ready (local BGE-M3)")
 
+    # Subscribe engine to internal event bus (for same-process MQTT-style clients)
     bus.subscribe("synera/patient/+/vitals", engine.handle_vital_payload)
     bus_task = asyncio.create_task(bus.run())
+
     print("✅ Synera engine started")
-    print(f"LLM provider: {getattr(settings, 'LLM_PROVIDER', 'ollama')}")
-    print("Event bus running")
-    print("Ready. Start simulator: python scripts/data_gen/mock_simulator.py")
+    print(f"✅ LLM provider: {settings.LLM_PROVIDER}")
+    print("✅ Event bus running")
+    print("📡 Ready. Start simulator: python scripts/data_gen/mock_simulator.py")
     yield
     bus_task.cancel()
     try:
@@ -59,6 +59,7 @@ app.include_router(patients.router, prefix="/api/v1")
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(alerts.router, prefix="/api/v1")
 app.include_router(vitals.router, prefix="/api/v1")
+app.include_router(vitals.router_ingest, prefix="/api/v1")
 app.include_router(medid.router, prefix="/api/v1")
 app.include_router(rag.router, prefix="/api/v1")
 app.include_router(ws_router)
