@@ -53,6 +53,14 @@ def get_trajectory_verdict(
     second_deriv = accelerations[-1] if accelerations else 0.0
     sustained = is_sustained_acceleration(accelerations, window=acceleration_window)
 
+    # Fallback: also treat as sustained acceleration if the last `window` first-derivatives
+    # are all positive AND the sigma deviation is ≥ 1.5  (catches the steep-plateau case
+    # where the 10-reading buffer sees only a high constant rate, making 2nd deriv ≈ 0).
+    if not sustained and deviation_sigma >= 1.5 and len(rates) >= acceleration_window:
+        tail_rates = rates[-acceleration_window:]
+        if sum(1 for r in tail_rates if r > 0) >= acceleration_window:
+            sustained = True
+
     return {
         "deviation_sigma": deviation_sigma,
         "second_derivative": second_deriv,

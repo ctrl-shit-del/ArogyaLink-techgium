@@ -11,7 +11,29 @@ async def trigger_rag(body: dict):
     try:
         from rag.pipeline.alert_context_builder import AlertContext, PatientSummary, VitalPoint
         from rag.pipeline.clinical_brief_generator import generate_brief_sync
-        p = body.get("patient", {})
+
+        # Support both flat body (patient_id at top level) and nested {patient: {...}} format
+        if "patient" in body and isinstance(body["patient"], dict):
+            p = body["patient"]
+        else:
+            # Look up full MedID from Supabase so the brief is properly personalised
+            pid = body.get("patient_id", "")
+            if pid:
+                try:
+                    from backend.services.database.patient_repo import get_patient
+                    p = get_patient(pid) or {}
+                except Exception:
+                    p = {}
+            else:
+                p = {}
+            # Merge any top-level patient fields from the request body
+            p = {**p, **{k: v for k, v in body.items() if k in (
+                "patient_id", "name", "age", "gender", "blood_group", "ward",
+                "bed_number", "diagnosed_conditions", "current_medications",
+                "known_allergies", "genomic_risk_cardiac", "genomic_risk_respiratory",
+                "genomic_risk_sepsis", "last_clinical_notes",
+            ) and v is not None}}
+
         ps = PatientSummary(
             patient_id=p.get("patient_id", ""),
             name=p.get("name", ""),
@@ -31,7 +53,7 @@ async def trigger_rag(body: dict):
         vitals_window = [VitalPoint(heart_rate=v.get("heart_rate"), spo2=v.get("spo2"), temperature=v.get("temperature"), motion_score=v.get("motion_score")) for v in body.get("vitals_window", [])]
         ctx = AlertContext(
             patient=ps,
-            patient_age=body.get("patient_age", 40),
+            patient_age=body.get("patient_age", ps.age),
             trigger_vital=body.get("trigger_vital", "heart_rate"),
             trigger_value=float(body.get("trigger_value", 0)),
             baseline_value=float(body.get("baseline_value", 0)),

@@ -1,5 +1,21 @@
-"""Five mock patient profiles for simulator and demo."""
-from typing import Any
+"""Five mock patient profiles for simulator and demo.
+
+Also exposes ArchetypeProfile, PROFILES, and get_profile for use by
+PatientSimulator (demo_scenarios.py and training pipelines).
+"""
+from __future__ import annotations
+from dataclasses import dataclass, field
+from typing import Any, Optional
+
+import sys, os
+_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
+from ml.shared.constants import (
+    ARCHETYPE_STABLE, ARCHETYPE_TRAJECTORY_ACCEL, ARCHETYPE_EXERTION,
+    ARCHETYPE_ARTIFACT_GLITCH, ARCHETYPE_SLOW_DRIFT, ARCHETYPE_POST_OP_RECOVERY,
+)
 
 PATIENT_PROFILES: dict[str, dict[str, Any]] = {
     "PT-0001": {
@@ -106,3 +122,148 @@ PATIENT_PROFILES: dict[str, dict[str, Any]] = {
         "expected_outcome": "WATCH tier — deviation triggered, no acceleration, no RAG call",
     },
 }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Archetype Profiles (used by PatientSimulator and demo_scenarios)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@dataclass
+class ArchetypeProfile:
+    name: str
+    # ── Resting baseline ──────────────────────────────────────────────────────
+    rest_hr_mean: float
+    rest_hr_std: float
+    rest_spo2_mean: float
+    rest_spo2_std: float
+    rest_temp_mean: float
+    rest_temp_std: float
+    rest_sys_bp: float
+    rest_dia_bp: float
+    rest_motion_mean: float
+    rest_motion_std: float
+
+    # ── Trajectory parameters ─────────────────────────────────────────────────
+    stable_readings_before_event: int = 0
+    hr_trajectory: str = "none"
+    trajectory_target_hr: float = 0.0
+    trajectory_duration_readings: int = 0
+    spo2_drop_total: float = 0.0
+    temp_rise_total: float = 0.0
+    motion_high_during_event: bool = False
+    exertion_motion_level: float = 8.0
+
+    # ── Glitch parameters ─────────────────────────────────────────────────────
+    glitch_interval_min: int = 60
+    glitch_interval_max: int = 120
+    glitch_hr_spike: float = 220.0
+    glitch_spo2_drop: float = 65.0
+
+    # ── Description ───────────────────────────────────────────────────────────
+    description: str = ""
+    expected_alert: str = "none"
+
+
+PROFILES: dict[str, ArchetypeProfile] = {
+
+    ARCHETYPE_STABLE: ArchetypeProfile(
+        name=ARCHETYPE_STABLE,
+        rest_hr_mean=72.0, rest_hr_std=5.0,
+        rest_spo2_mean=97.0, rest_spo2_std=1.0,
+        rest_temp_mean=36.8, rest_temp_std=0.2,
+        rest_sys_bp=118.0, rest_dia_bp=76.0,
+        rest_motion_mean=0.5, rest_motion_std=0.8,
+        stable_readings_before_event=9999,
+        hr_trajectory="none",
+        description="Healthy resting adult — ward patient, no acute condition.",
+        expected_alert="none",
+    ),
+
+    ARCHETYPE_TRAJECTORY_ACCEL: ArchetypeProfile(
+        name=ARCHETYPE_TRAJECTORY_ACCEL,
+        rest_hr_mean=80.0, rest_hr_std=4.0,
+        rest_spo2_mean=97.0, rest_spo2_std=0.8,
+        rest_temp_mean=36.8, rest_temp_std=0.15,
+        rest_sys_bp=120.0, rest_dia_bp=80.0,
+        rest_motion_mean=0.3, rest_motion_std=0.4,
+        stable_readings_before_event=240,
+        hr_trajectory="exponential",
+        trajectory_target_hr=185.0,
+        trajectory_duration_readings=120,
+        spo2_drop_total=9.0,
+        temp_rise_total=0.9,
+        motion_high_during_event=False,
+        description="Post-op patient. Silent deterioration onset (early sepsis / PE).",
+        expected_alert="synera_state",
+    ),
+
+    ARCHETYPE_EXERTION: ArchetypeProfile(
+        name=ARCHETYPE_EXERTION,
+        rest_hr_mean=72.0, rest_hr_std=4.0,
+        rest_spo2_mean=97.0, rest_spo2_std=0.8,
+        rest_temp_mean=36.7, rest_temp_std=0.15,
+        rest_sys_bp=116.0, rest_dia_bp=74.0,
+        rest_motion_mean=0.4, rest_motion_std=0.6,
+        stable_readings_before_event=60,
+        hr_trajectory="exertion_burst",
+        trajectory_target_hr=132.0,
+        trajectory_duration_readings=36,
+        spo2_drop_total=2.0,
+        motion_high_during_event=True,
+        exertion_motion_level=8.0,
+        description="Ward patient walks to bathroom. High motion + HR spike. Should NOT alert.",
+        expected_alert="none",
+    ),
+
+    ARCHETYPE_ARTIFACT_GLITCH: ArchetypeProfile(
+        name=ARCHETYPE_ARTIFACT_GLITCH,
+        rest_hr_mean=75.0, rest_hr_std=4.0,
+        rest_spo2_mean=97.0, rest_spo2_std=0.8,
+        rest_temp_mean=36.9, rest_temp_std=0.2,
+        rest_sys_bp=122.0, rest_dia_bp=80.0,
+        rest_motion_mean=0.3, rest_motion_std=0.5,
+        hr_trajectory="glitch_spike",
+        glitch_interval_min=60,
+        glitch_interval_max=120,
+        glitch_hr_spike=228.0,
+        glitch_spo2_drop=63.0,
+        description="Stable patient with loose PPG sensor causing periodic artifact spikes.",
+        expected_alert="none",
+    ),
+
+    ARCHETYPE_SLOW_DRIFT: ArchetypeProfile(
+        name=ARCHETYPE_SLOW_DRIFT,
+        rest_hr_mean=72.0, rest_hr_std=3.0,
+        rest_spo2_mean=96.5, rest_spo2_std=0.8,
+        rest_temp_mean=37.0, rest_temp_std=0.15,
+        rest_sys_bp=125.0, rest_dia_bp=82.0,
+        rest_motion_mean=0.4, rest_motion_std=0.5,
+        stable_readings_before_event=15,
+        hr_trajectory="exponential",
+        trajectory_target_hr=155.0,
+        trajectory_duration_readings=100,
+        spo2_drop_total=1.5,
+        motion_high_during_event=False,
+        description="HR drifts linearly over 45 min. WATCH tier, not CRITICAL.",
+        expected_alert="watch",
+    ),
+
+    ARCHETYPE_POST_OP_RECOVERY: ArchetypeProfile(
+        name=ARCHETYPE_POST_OP_RECOVERY,
+        rest_hr_mean=95.0, rest_hr_std=6.0,
+        rest_spo2_mean=95.0, rest_spo2_std=1.0,
+        rest_temp_mean=37.4, rest_temp_std=0.25,
+        rest_sys_bp=140.0, rest_dia_bp=88.0,
+        rest_motion_mean=1.0, rest_motion_std=1.2,
+        hr_trajectory="none",
+        description="Post-op patient. Elevated but stable vitals. Synera calibrates to their new normal.",
+        expected_alert="none",
+    ),
+}
+
+
+def get_profile(archetype: str) -> ArchetypeProfile:
+    """Retrieve archetype profile by name.  Raises KeyError on invalid archetype."""
+    if archetype not in PROFILES:
+        raise KeyError(f"Unknown archetype '{archetype}'. Valid: {list(PROFILES.keys())}")
+    return PROFILES[archetype]

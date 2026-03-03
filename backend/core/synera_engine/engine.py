@@ -20,6 +20,7 @@ from backend.services.notifications.alert_dispatcher import (
     dispatch_state_change,
     dispatch_exertion_logged,
 )
+from backend.services.tinyml_service import tinyml_service
 
 logger = logging.getLogger(__name__)
 
@@ -194,7 +195,7 @@ def _build_rag_context_and_invoke(patient: dict, buffer: WindowBuffer, trigger_v
         second_derivative=second_derivative,
         motion_score=motion_score,
         vitals_window=vitals_window,
-        trigger_timestamp=datetime.utcnow().isoformat() + "Z",
+        trigger_timestamp=datetime.now(timezone.utc).isoformat(),
     )
     brief = generate_brief_sync(ctx, alert_id=alert_id)
     return brief.model_dump() if hasattr(brief, "model_dump") else brief.dict()
@@ -219,6 +220,11 @@ async def process_vital_payload(payload: VitalPayload) -> Optional[Tuple[RuleRes
     baseline_spo2_std = patient.get("baseline_spo2_std")
     baseline_temp = patient.get("baseline_temp_mean")
     baseline_temp_std = patient.get("baseline_temp_std")
+
+    # TinyML anomaly scoring — run before rule pipeline, result annotates the vital row
+    reconstruction_error, _tinyml_anomaly = tinyml_service.score_from_buffer(deque_buf)
+    if tinyml_service.ready:
+        print(f"[TinyML] {patient_id} recon_error={reconstruction_error:.5f} anomaly={_tinyml_anomaly}")
 
     result, extra = run_pipeline(
         payload=payload,
@@ -249,13 +255,15 @@ async def process_vital_payload(payload: VitalPayload) -> Optional[Tuple[RuleRes
         )
         insert_vital(
             patient_id=patient_id,
-            recorded_at=payload.recorded_at or datetime.utcnow(),
+            recorded_at=payload.recorded_at or datetime.now(timezone.utc),
             heart_rate=payload.heart_rate,
             spo2=payload.spo2,
             temperature=payload.temperature,
             sys_bp_est=payload.sys_bp_est,
             dia_bp_est=payload.dia_bp_est,
             motion_score=payload.motion_score,
+            reconstruction_error=reconstruction_error,
+            pre_alert=False,
         )
         return (result, extra)
 
@@ -269,6 +277,42 @@ async def process_vital_payload(payload: VitalPayload) -> Optional[Tuple[RuleRes
                 previous_state=prev.value,
                 reason=f"Deviation {extra.get('deviation_sigma', 0):.1f}σ. Trajectory flat. Monitoring.",
             )
+        insert_vital(
+            patient_id=patient_id,
+            recorded_at=payload.recorded_at or datetime.now(timezone.utc),
+            heart_rate=payload.heart_rate,
+            spo2=payload.spo2,
+            temperature=payload.temperature,
+            sys_bp_est=payload.sys_bp_est,
+            dia_bp_est=payload.dia_bp_est,
+            motion_score=payload.motion_score,
+            reconstruction_error=reconstruction_error,
+            pre_alert=False,
+        )
+        return (result, extra)
+
+    if result == RuleResult.STABLE:
+        prev = state_manager.get(patient_id)
+        if prev != PatientState.STABLE:
+            state_manager.set_stable(patient_id)
+            await dispatch_state_change(
+                patient_id=patient_id,
+                new_state="STABLE",
+                previous_state=prev.value,
+                reason="Vitals within normal range.",
+            )
+        insert_vital(
+            patient_id=patient_id,
+            recorded_at=payload.recorded_at or datetime.now(timezone.utc),
+            heart_rate=payload.heart_rate,
+            spo2=payload.spo2,
+            temperature=payload.temperature,
+            sys_bp_est=payload.sys_bp_est,
+            dia_bp_est=payload.dia_bp_est,
+            motion_score=payload.motion_score,
+            reconstruction_error=reconstruction_error,
+            pre_alert=False,
+        )
         return (result, extra)
 
     if result == RuleResult.SYNERA_STATE:
@@ -295,22 +339,25 @@ async def process_vital_payload(payload: VitalPayload) -> Optional[Tuple[RuleRes
             )
             state_vector = build_state_vector(alert_ctx)
             priority_tier, drl_confidence = triage_agent.predict(state_vector)
+            print(f"[DRL] {patient_id} → priority={priority_tier} confidence={drl_confidence:.2f}")
             logger.info("[ENGINE] DRL triage: %s (confidence=%.2f)", priority_tier, drl_confidence)
         except Exception as e:
             logger.warning("[ENGINE] DRL predict failed: %s — using ELEVATED", e)
             priority_tier, drl_confidence = "ELEVATED", 0.0
 
         # Check brief cache (5 min TTL) to avoid repeated Groq calls
-        cache_key = patient_id
+        # Key includes trigger_vital so different vital alerts for the same patient
+        # get independent cached entries rather than sharing a single one.
+        cache_key = f"{patient_id}:{trigger_vital}"
         clinical_brief = None
         cached = _get_engine()._brief_cache.get(cache_key)
         if cached:
             age_seconds = (datetime.now(timezone.utc) - cached["timestamp"]).total_seconds()
             if age_seconds < 300:
-                print(f"[ENGINE] Using cached brief for {patient_id}")
+                print(f"[ENGINE] Using cached brief for {cache_key} (age={age_seconds:.0f}s)")
                 clinical_brief = cached["brief"]
         if clinical_brief is None:
-            print("[ENGINE] RAG pipeline generating brief...")
+            print(f"[ENGINE] RAG pipeline generating brief for {cache_key}...")
             _rag_start = datetime.now(timezone.utc)
             try:
                 clinical_brief = await asyncio.wait_for(
@@ -322,7 +369,7 @@ async def process_vital_payload(payload: VitalPayload) -> Optional[Tuple[RuleRes
                     timeout=settings.RAG_TIMEOUT_SECONDS,
                 )
                 _rag_ms = (datetime.now(timezone.utc) - _rag_start).total_seconds() * 1000
-                print(f"[ENGINE] Clinical brief generated in {_rag_ms:.0f}ms")
+                print(f"[ENGINE] Clinical brief generated in {_rag_ms:.0f}ms — cached as {cache_key}")
                 _get_engine()._brief_cache[cache_key] = {
                     "brief": clinical_brief,
                     "timestamp": datetime.now(timezone.utc),
@@ -367,6 +414,20 @@ async def process_vital_payload(payload: VitalPayload) -> Optional[Tuple[RuleRes
             llm_provider=getattr(settings, "LLM_PROVIDER", "ollama"),
             priority_tier_assigned=priority_tier,
             drl_confidence=round(drl_confidence, 2),
+        )
+
+        # Store the vital that triggered the alert with pre_alert=True for DRL training signal
+        insert_vital(
+            patient_id=patient_id,
+            recorded_at=payload.recorded_at or datetime.now(timezone.utc),
+            heart_rate=payload.heart_rate,
+            spo2=payload.spo2,
+            temperature=payload.temperature,
+            sys_bp_est=payload.sys_bp_est,
+            dia_bp_est=payload.dia_bp_est,
+            motion_score=payload.motion_score,
+            reconstruction_error=reconstruction_error,
+            pre_alert=True,
         )
 
         trigger_summary = clinical_brief.get("trigger_summary", f"{trigger_vital}={trigger_value} deviation {deviation_sigma:.1f}σ")

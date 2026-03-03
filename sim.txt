@@ -1,0 +1,49 @@
+
+PS C:\Users\harsh\Harsh\project\ArogyaLink-techgium> python scripts\testing\simulation_report.py
+>> 
+================================================================
+  Synera 2.0 — Simulation Quality Report
+  Generated: 2026-03-03T17:07:15.665886+00:00
+================================================================
+
+[1/5] Health check …
+      status        : ok
+      database      : connected (Supabase)
+      vector_store  : connected (Supabase pgvector)
+      llm_provider  : groq
+      llm_status    : api_key_present
+      pg_collections: {'medical_knowledge': 22, 'clinical_cases': 60}
+
+[2/5] Patient roster …
+      Enrolled patients: 5
+        PT-0001  Rajesh Kumar            ward=General Ward A
+        PT-0002  Priya Sharma            ward=Surgical Ward B
+        PT-0003  Arjun Mehta             ward=General Ward A
+        PT-0004  Fatima Begum            ward=ICU Step-Down
+        PT-0005  Suresh Patel            ward=General Ward C
+
+[3/5] Alert log (all patients) …
+      Total alerts fired: 6
+        [PT-0002] 2026-03-02T11:48:39  vital=heart_rate val=92.5 — pending
+        [PT-0002] 2026-03-02T10:45:14  vital=heart_rate val=92.5 — pending 
+        [PT-0002] 2026-03-02T10:32:50  vital=heart_rate val=102.1 — pending
+        [PT-0002] 2026-03-02T10:31:32  vital=heart_rate val=92.5 — pending 
+        [PT-0002] 2026-03-02T10:22:37  vital=heart_rate val=102.1 — pending
+        [PT-0002] 2026-03-02T10:21:18  vital=heart_rate val=92.5 — pending 
+
+[4/5] PT-0002 (Priya Sharma) trajectory analysis …
+      Vitals in DB  : 291 readings
+      Synera alert index : 90  (HR≈92.5, ts=2026-03-02T11:48:39)
+      Static HR>120 index: 3
+      Lead-time advantage: +135s (trigger HR 92.5 → static 120, ~1 bpm/5s) 
+      PT-0002 alerts     : 6
+
+[5/5] False-positive audit (PT-0001/0003/0004/0005) …
+      PT-0001: ✅ CLEAN
+      PT-0003: ✅ CLEAN
+      PT-0004: ✅ CLEAN
+      PT-0005: ✅ CLEAN
+
+(>120): +135s (trigger HR 92.5 → static 120, ~1 bpm/5s)
+  False positives (4 stable): 0
+  Backend health             : ok ✅

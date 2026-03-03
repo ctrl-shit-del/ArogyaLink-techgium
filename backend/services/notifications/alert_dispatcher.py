@@ -24,6 +24,7 @@ async def dispatch_synera_state(
         "alert_id": alert_id,
         "patient_id": patient_id,
         "priority_tier": priority_tier,
+        "drl_priority": priority_tier,
         "drl_confidence": drl_confidence,
         "trigger_timestamp": trigger_timestamp or datetime.utcnow().isoformat() + "Z",
         "trigger_summary": trigger_summary,
