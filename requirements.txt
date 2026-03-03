@@ -33,6 +33,9 @@ stable-baselines3==2.3.2
 gymnasium==0.29.1
 torch
 
+# TinyML inference
+onnxruntime>=1.17.0
+
 # Dev / test
 pytest
 pytest-asyncio

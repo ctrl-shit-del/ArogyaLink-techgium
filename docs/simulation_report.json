@@ -1,0 +1,36 @@
+{
+  "generated_at": "2026-03-03T17:07:21.057973+00:00",
+  "backend_url": "http://localhost:8000",
+  "health": {
+    "status": "ok",
+    "llm_provider": "groq",
+    "llm_model": "llama-3.1-8b-instant",
+    "embedding_model": "BAAI/bge-m3",
+    "database": "connected (Supabase)",
+    "vector_store": "connected (Supabase pgvector)",
+    "collections": {
+      "medical_knowledge": 22,
+      "clinical_cases": 60
+    },
+    "llm_status": "api_key_present"
+  },
+  "patients_enrolled": 5,
+  "total_alerts_fired": 6,
+  "pt0002": {
+    "alerts_fired": 6,
+    "synera_trigger_hr": 92.5,
+    "synera_alert_index": 90,
+    "synera_alert_ts": "2026-03-02T11:48:39.400751+00:00",
+    "static_threshold_index": 3,
+    "lead_time_seconds": 135,
+    "lead_time_label": "+135s (trigger HR 92.5 \u2192 static 120, ~1 bpm/5s)",
+    "vitals_count": 291
+  },
+  "false_positives": {
+    "PT-0001": 0,
+    "PT-0003": 0,
+    "PT-0004": 0,
+    "PT-0005": 0
+  },
+  "total_false_positives": 0
+}

@@ -4,7 +4,17 @@ from typing import Optional
 from backend.config.database import get_db
 
 
-def insert_vital(patient_id, heart_rate, spo2, temperature, motion_score, recorded_at=None, **kwargs):
+def insert_vital(
+    patient_id,
+    heart_rate,
+    spo2,
+    temperature,
+    motion_score,
+    recorded_at=None,
+    reconstruction_error: float = None,
+    pre_alert: bool = False,
+    **kwargs,
+):
     # Convert datetime to ISO string if needed
     if isinstance(recorded_at, datetime.datetime):
         recorded_at = recorded_at.isoformat()
@@ -18,6 +28,9 @@ def insert_vital(patient_id, heart_rate, spo2, temperature, motion_score, record
         "temperature": temperature,
         "motion_score": motion_score,
         "recorded_at": recorded_at,
+        # TinyML anomaly fields — written explicitly so they are never silently dropped
+        "reconstruction_error": reconstruction_error,
+        "pre_alert": pre_alert,
         **kwargs,
     }
     response = get_db().table("vitals_history").insert(row).execute()
