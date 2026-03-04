@@ -11,12 +11,13 @@
 2. [First-Time Setup (do once)](#2-first-time-setup-do-once)
 3. [Step 1 — Start the Backend](#3-step-1--start-the-backend)
 4. [Step 2 — Verify Health](#4-step-2--verify-health)
-5. [Step 3 — Run the Mock Simulator](#5-step-3--run-the-mock-simulator)
-6. [Step 4 — Run the Simulation Report](#6-step-4--run-the-simulation-report)
-7. [Optional: Test RAG Manually](#7-optional-test-rag-manually)
-8. [Optional: Run Unit Tests](#8-optional-run-unit-tests)
-9. [Using run-windows.bat (shortcut)](#9-using-run-windowsbat-shortcut)
-10. [Common Issues](#10-common-issues)
+5. [Step 3 — Start the Frontend](#5-step-3--start-the-frontend)
+6. [Step 4 — Run the Mock Simulator](#6-step-4--run-the-mock-simulator)
+7. [Step 5 — Run the Simulation Report](#7-step-5--run-the-simulation-report)
+8. [Optional: Test RAG Manually](#8-optional-test-rag-manually)
+9. [Optional: Run Unit Tests](#9-optional-run-unit-tests)
+10. [Using run-windows.bat (shortcut)](#10-using-run-windowsbat-shortcut)
+11. [Common Issues](#11-common-issues)
 
 ---
 
@@ -202,7 +203,21 @@ If `collections` shows `0` for either table, re-run step 2g.
 
 ---
 
-## 5. Step 3 — Run the Mock Simulator
+## 5. Step 3 — Start the Frontend
+
+Open a **third terminal** for the frontend dashboard:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+The Synera 2.0 dashboard is now live at [http://localhost:5173](http://localhost:5173). Keep this terminal open!
+
+---
+
+## 6. Step 4 — Run the Mock Simulator
 
 In the **second terminal** (or a third):
 
@@ -248,7 +263,7 @@ SYNERA_STATE fires for PT-0002 **approximately 2–3 minutes** into the simulato
 
 ---
 
-## 6. Step 4 — Run the Simulation Report
+## 7. Step 5 — Run the Simulation Report
 
 After at least one SYNERA_STATE alert has fired for PT-0002, run the quality report:
 
@@ -296,7 +311,7 @@ The JSON report is saved to `docs/simulation_report.json`.
 
 ---
 
-## 7. Optional: Test RAG Manually
+## 8. Optional: Test RAG Manually
 
 Trigger the RAG pipeline without running the simulator:
 
@@ -326,7 +341,7 @@ Returns a full `ClinicalBrief` JSON with differential diagnoses, recommended act
 
 ---
 
-## 8. Optional: Run Unit Tests
+## 9. Optional: Run Unit Tests
 
 The 48 unit tests (Rule A × 16, Rule B × 16, Rule C × 16) require **no network** — no Supabase, Groq, or Cohere keys needed.
 
@@ -339,7 +354,7 @@ All 48 should pass. These cover edge cases for artifact rejection, exertion dete
 
 ---
 
-## 9. Using run-windows.bat (shortcut)
+## 10. Using run-windows.bat (shortcut)
 
 `run-windows.bat` wraps the common commands:
 
@@ -358,7 +373,7 @@ PowerShell equivalent: `.\run-windows.ps1 <command>` with the same subcommands.
 
 ---
 
-## 10. Common Issues
+## 11. Common Issues
 
 ### `UnicodeEncodeError: 'cp1252' codec can't encode character`
 
@@ -433,13 +448,16 @@ This takes 5–10 minutes and saves the model. Alerts still fire without the DRL
 # Terminal 1 — Server (keep open)
 $env:PYTHONPATH = $PWD ; $env:PYTHONUTF8 = "1" ; python run.py
 
-# Terminal 2 — Wait for 5 green ticks, then verify
+# Terminal 2 — Frontend (keep open)
+cd frontend ; npm install ; npm run dev
+
+# Terminal 3 — Wait for 5 green ticks on Server, then verify
 Invoke-RestMethod -Uri http://localhost:8000/api/v1/health | Select-Object status,database,llm_status
 
-# Terminal 2 — Simulator (runs ~3 min until SYNERA_STATE fires for PT-0002)
+# Terminal 3 — Simulator (runs ~3 min until SYNERA_STATE fires for PT-0002)
 $env:PYTHONPATH = $PWD ; $env:PYTHONUTF8 = "1" ; python scripts/data_gen/mock_simulator.py
 
-# Terminal 2 — After alert fires, run quality report
+# Terminal 3 — After alert fires, run quality report
 $env:PYTHONUTF8 = "1" ; python scripts/testing/simulation_report.py
 ```
 

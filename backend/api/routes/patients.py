@@ -47,6 +47,8 @@ async def get_patient_endpoint(patient_id: str):
         "known_allergies": p.get("known_allergies", []),
         "baseline_hr_mean": p.get("baseline_hr_mean"),
         "baseline_spo2_mean": p.get("baseline_spo2_mean"),
+        "baseline_mse_mean": p.get("baseline_mse_mean"),
+        "baseline_mse_std": p.get("baseline_mse_std"),
     }
 
 

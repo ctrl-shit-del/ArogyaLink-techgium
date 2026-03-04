@@ -27,6 +27,8 @@ async def get_vitals_endpoint(
             "spo2": v.get("spo2"),
             "temperature": v.get("temperature"),
             "motion_score": v.get("motion_score"),
+            "reconstruction_error": v.get("reconstruction_error"),
+            "pre_alert": v.get("pre_alert"),
         }
         for v in vitals
     ]

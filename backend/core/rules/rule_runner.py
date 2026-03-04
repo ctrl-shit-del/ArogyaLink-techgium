@@ -128,6 +128,9 @@ def run(
 
     # Deviation > 1σ but no acceleration → WATCH
     if verdict.get("deviation_sigma", 0) >= 1.0:
+        if motion > 6:
+            return RuleResult.EXERTION, {"motion_score": motion, "hr_elevation": (payload.heart_rate or 0) - baseline_hr_mean}
+            
         return RuleResult.WATCH, {
             "trigger_vital": trigger_vital,
             "deviation_sigma": verdict["deviation_sigma"],
