@@ -74,3 +74,55 @@ async def rag_search(q: str, top_k: int = 5):
     """Test vector retrieval (Supabase pgvector)."""
     chunks = search("medical_knowledge", q, top_k=top_k)
     return [{"id": c.id, "text": c.text[:200], "metadata": c.metadata} for c in chunks]
+
+
+@router.post("/query")
+async def rag_query(body: dict):
+    """
+    Interactive RAG query from the clinical assistant panel.
+    Body: { patient_id: str, question: str, vitals_snapshot?: dict }
+    Returns: ClinicalBrief shaped response
+    """
+    try:
+        from rag.pipeline.alert_context_builder import AlertContext, PatientSummary, VitalPoint
+        from rag.pipeline.clinical_brief_generator import generate_brief_sync
+        from backend.services.database.patient_repo import get_patient
+
+        patient_id = body.get("patient_id", "")
+        question = body.get("question", "")
+        vitals_snapshot = body.get("vitals_snapshot", {})
+
+        p = get_patient(patient_id) or {}
+
+        ps = PatientSummary(
+            patient_id=p.get("patient_id", patient_id),
+            name=p.get("name", ""),
+            age=p.get("age", 40),
+            gender=p.get("gender"),
+            blood_group=p.get("blood_group"),
+            ward=p.get("ward"),
+            bed_number=p.get("bed_number"),
+            diagnosed_conditions=p.get("diagnosed_conditions", []),
+            current_medications=p.get("current_medications", []),
+            known_allergies=p.get("known_allergies", []),
+            genomic_risk_cardiac=p.get("genomic_risk_cardiac", "Unknown"),
+            genomic_risk_respiratory=p.get("genomic_risk_respiratory", "Unknown"),
+            genomic_risk_sepsis=p.get("genomic_risk_sepsis", "Unknown"),
+            last_clinical_notes=question,  # Use the doctor's question as context
+        )
+
+        ctx = AlertContext(
+            patient=ps,
+            patient_age=p.get("age", 40),
+            trigger_vital=vitals_snapshot.get("trigger_vital", "heart_rate"),
+            trigger_value=float(vitals_snapshot.get("heart_rate") or vitals_snapshot.get("trigger_value") or 0),
+            baseline_value=float(p.get("baseline_hr_mean") or 0),
+            deviation_sigma=float(vitals_snapshot.get("deviation_sigma") or 0),
+            second_derivative=0.0,
+            motion_score=int(vitals_snapshot.get("motion_score") or 0),
+            vitals_window=[],
+        )
+        brief = generate_brief_sync(ctx, alert_id="query")
+        return brief.model_dump() if hasattr(brief, "model_dump") else brief.dict()
+    except Exception as e:
+        return {"error": str(e)}

@@ -2,6 +2,7 @@ import React from 'react';
 import { usePatientStore } from '../store/patientStore';
 import { MedIDPanel } from '../components/patient/MedIDPanel';
 import { TrendChart } from '../components/charts/TrendChart';
+import { ClinicalQueryPanel } from '../components/patient/ClinicalQueryPanel';
 
 export interface PatientDetailProps {
     patientId: string;
@@ -46,6 +47,12 @@ export const PatientDetail: React.FC<PatientDetailProps> = ({ patientId }) => {
                 <div>
                     <h3 className="text-white font-semibold mb-3">Synera Anomaly Detection & Heart Rate Trend</h3>
                     <TrendChart patientId={patient.patient_id} />
+                </div>
+
+                {/* Clinical Assistant — RAG Chatbot */}
+                <div>
+                    <h3 className="text-white font-semibold mb-3">Clinical Assistant</h3>
+                    <ClinicalQueryPanel patient={patient} />
                 </div>
             </div>
         </div>
